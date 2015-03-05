@@ -19,7 +19,7 @@
     // Constructor
     function Chance (seed) {
         if (!(this instanceof Chance)) {
-            return seed == null ? new Chance() : new Chance(seed);
+            return new Chance(seed);
         }
 
         // if user has provided a function, use that as the generator
@@ -212,7 +212,8 @@
         options = initOptions(options);
 
         var length = options.length || this.natural({min: 5, max: 20}),
-            text = this.n(this.character, length, options);
+            pool = options.pool,
+            text = this.n(this.character, length, {pool: pool});
 
         return text.join("");
     };
@@ -667,7 +668,7 @@
             return [value, value, value].join(delimiter || '');
         }
 
-        options = initOptions(options, {format: this.pick(['hex', 'shorthex', 'rgb', 'rgba', '0x']), grayscale: false, casing: 'lower'});
+        options = initOptions(options, {format: this.pick(['hex', 'shorthex', 'rgb', '0x']), grayscale: false, casing: 'lower'});
         var isGrayscale = options.grayscale;
         var colorValue;
 
@@ -683,16 +684,10 @@
             } else {
                 colorValue = 'rgb(' + this.natural({max: 255}) + ',' + this.natural({max: 255}) + ',' + this.natural({max: 255}) + ')';
             }
-        } else if (options.format === 'rgba') {
-            if (isGrayscale) {
-                colorValue = 'rgba(' + gray(this.natural({max: 255}), ',') + ',' + this.floating({min:0, max:1}) + ')';
-            } else {
-                colorValue = 'rgba(' + this.natural({max: 255}) + ',' + this.natural({max: 255}) + ',' + this.natural({max: 255}) + ',' + this.floating({min:0, max:1}) + ')';
-            }
         } else if (options.format === '0x') {
             colorValue = '0x' + (isGrayscale ? gray(this.hash({length: 2})) : this.hash({length: 6}));
         } else {
-            throw new Error('Invalid format provided. Please provide one of "hex", "shorthex", "rgb", "rgba", or "0x".');
+            throw new Error('Invalid format provided. Please provide one of "hex", "shorthex", "rgb" or "0x".');
         }
 
         if (options.casing === 'upper' ) {
@@ -1016,19 +1011,13 @@
             date = new Date(this.natural({min: min, max: max}));
         } else {
             var m = this.month({raw: true});
-            var daysInMonth = m.days;
-
-            if(options && options.month) {
-                // Mod 12 to allow months outside range of 0-11 (not encouraged, but also not prevented).
-                daysInMonth = this.get('months')[((options.month % 12) + 12) % 12].days;
-            }
 
             options = initOptions(options, {
                 year: parseInt(this.year(), 10),
                 // Necessary to subtract 1 because Date() 0-indexes month but not day or year
                 // for some reason.
                 month: m.numeric - 1,
-                day: this.natural({min: 1, max: daysInMonth}),
+                day: this.natural({min: 1, max: m.days}),
                 hour: this.hour(),
                 minute: this.minute(),
                 second: this.second(),
@@ -1837,8 +1826,7 @@
     // Mersenne Twister from https://gist.github.com/banksean/300494
     var MersenneTwister = function (seed) {
         if (seed === undefined) {
-            // kept random number same size as time used previously to ensure no unexpected results downstream
-            seed = Math.floor(Math.random()*Math.pow(10,13));
+            seed = new Date().getTime();
         }
         /* Period parameters */
         this.N = 624;
